@@ -1,14 +1,13 @@
 // ============================================================
-// MapLocationPicker — Location entry (works WITHOUT billing/map)
-// - Driver can just TYPE the pickup/drop location
-// - Optional Google map for pinning (only renders with billing)
+// MapLocationPicker — Location entry (no Google Maps dependency)
+// - Driver can TYPE the pickup/drop location
+// - "Use Current Location" button fills coords via geolocator
 // - On "Use This": always returns the typed address
-// - If a pin is set, also returns coords for routing
+// - If a location is set, also returns coords for routing
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MapLocationPicker extends StatefulWidget {
   final String? initialAddress;
@@ -33,8 +32,8 @@ class MapLocationPicker extends StatefulWidget {
 
 class _MapLocationPickerState extends State<MapLocationPicker> {
   final TextEditingController _searchCtrl = TextEditingController();
-  LatLng? _selected;
-  LatLng? _currentLocation;
+  ({double lat, double lng})? _selected;
+  ({double lat, double lng})? _currentLocation;
 
   @override
   void initState() {
@@ -42,7 +41,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     _searchCtrl.text = widget.initialAddress ?? '';
     final lat = widget.initialLat;
     final lng = widget.initialLng;
-    if (lat != null && lng != null) _selected = LatLng(lat, lng);
+    if (lat != null && lng != null) _selected = (lat: lat, lng: lng);
     _fetchCurrentLocation();
   }
 
@@ -66,25 +65,30 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       );
       if (mounted) {
         setState(() {
-          _currentLocation = LatLng(position.latitude, position.longitude);
+          _currentLocation = (lat: position.latitude, lng: position.longitude);
         });
       }
     } catch (_) {}
   }
 
-  void _goToCurrentLocation() {
+  Future<void> _goToCurrentLocation() async {
     if (_currentLocation == null) {
-      _fetchCurrentLocation();
-      return;
+      await _fetchCurrentLocation();
+      if (_currentLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not fetch current location. Enable location permissions.')),
+        );
+        return;
+      }
     }
     setState(() {
       _selected = _currentLocation;
       _searchCtrl.text =
-          '${_currentLocation!.latitude.toStringAsFixed(6)}, ${_currentLocation!.longitude.toStringAsFixed(6)}';
+          '${_currentLocation!.lat.toStringAsFixed(6)}, ${_currentLocation!.lng.toStringAsFixed(6)}';
     });
   }
 
-  // WORKS WITHOUT MAP: returns the typed address (coords only if pinned)
+  // Returns the typed address (coords only if current location was used)
   void _confirm() {
     final text = _searchCtrl.text.trim();
     if (text.isEmpty) {
@@ -96,7 +100,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     widget.onAddressChanged(text);
 
     if (_selected != null && widget.onCoordsChanged != null) {
-      widget.onCoordsChanged!((lat: _selected!.latitude, lng: _selected!.longitude));
+      widget.onCoordsChanged!((lat: _selected!.lat, lng: _selected!.lng));
     }
     Navigator.pop(context);
   }
@@ -123,66 +127,39 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Map is OPTIONAL — it shows only when tiles load (billing enabled).
-          // Without billing it stays blank, but typing + Use This still works.
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _selected ?? const LatLng(7.8731, 80.7718),
-              zoom: 14,
-            ),
-            onMapCreated: (controller) {},
-            onTap: (latLng) {
-              setState(() {
-                _selected = latLng;
-                _searchCtrl.text =
-                    '${latLng.latitude.toStringAsFixed(6)}, ${latLng.longitude.toStringAsFixed(6)}';
-              });
-            },
-            markers: {
-              if (_selected != null)
-                Marker(markerId: const MarkerId('pin'), position: _selected!),
-            },
-          ),
-          // My Location button overlay (top-right of map)
-          Positioned(
-            right: 14,
-            top: 14,
-            child: Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-              elevation: 4,
-              child: InkWell(
-                onTap: _goToCurrentLocation,
-                borderRadius: BorderRadius.circular(30),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Icon(Icons.my_location, color: Colors.indigo, size: 24),
-                ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Use current location (geolocator, no Google Maps)
+            OutlinedButton.icon(
+              onPressed: widget.enabled ? _goToCurrentLocation : null,
+              icon: const Icon(Icons.my_location, color: Colors.indigo),
+              label: const Text('📍 Use My Current Location'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.indigo,
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
-          ),
-          // Hint: typing is enough; pin is optional
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            const SizedBox(height: 16),
+            // Hint card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.indigo.shade50,
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                border: Border.all(color: Colors.indigo.shade200),
               ),
               child: const Text(
-                '✍️ Type the location above, then tap ✅ Use This. (Tapping the map adds exact coordinates if available.)',
+                '✍️ Type the location above, then tap ✅ Use This.\n'
+                'Optionally tap "Use My Current Location" to attach GPS coordinates.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 13, color: Colors.indigo),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

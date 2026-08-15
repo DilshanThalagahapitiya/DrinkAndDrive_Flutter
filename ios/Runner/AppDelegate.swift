@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import GoogleMaps
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -8,9 +7,8 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Required: provide the Google Maps API key BEFORE any map is created.
-    // Without this, opening a GoogleMap crashes the app with a native assertion.
-    GMSServices.provideAPIKey("AIzaSyBiJCCihLlW8cjJ5CCrwsIVJp5I-0kqYrs")
+    // Google Maps API key is configured in Info.plist under "GoogleMapsAPIKey".
+    // The google_maps_flutter_ios plugin reads it automatically.
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

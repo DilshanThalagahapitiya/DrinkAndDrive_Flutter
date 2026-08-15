@@ -1,18 +1,21 @@
 // ============================================================
 // Login Screen
 // ============================================================
-// User login with email + password for all roles.
+// User login with email + password or Google Sign-In.
 // ============================================================
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/auth/google_auth_service.dart';
 import '../providers/auth_provider.dart';
 import '../../../features/home/screens/home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool isCustomerMode;
+  const LoginScreen({super.key, this.isCustomerMode = false});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -23,12 +26,71 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _keepLoggedIn = true; // Keep me logged in — default ON for all roles
+  bool _googleLoading = false;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _googleSignIn() async {
+    debugPrint('🟢 [LoginScreen] _googleSignIn called');
+    if (mounted) {
+      setState(() => _googleLoading = true);
+    }
+    try {
+      final account = await GoogleAuthService.instance.signIn();
+      if (account == null) {
+        debugPrint('⚠️ [LoginScreen] User cancelled Google sign-in');
+        return;
+      }
+      debugPrint('🟢 [LoginScreen] Google account: ${account.email}');
+
+      final idToken = await GoogleAuthService.instance.getIdToken();
+      if (idToken == null) {
+        debugPrint('❌ [LoginScreen] ID token is null');
+        throw Exception('Could not obtain Google ID token');
+      }
+      debugPrint('🟢 [LoginScreen] Got ID token (${idToken.length} chars), sending to backend...');
+
+      final auth = context.read<AuthProvider>();
+      final success = await auth.googleSignIn(idToken, role: 'CUSTOMER');
+      debugPrint('🟢 [LoginScreen] Backend result: success=$success');
+      if (!mounted) return;
+      if (success) {
+        debugPrint('✅ [LoginScreen] Google sign-in successful, navigating to Home');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      } else {
+        debugPrint('❌ [LoginScreen] Backend rejected: ${auth.error}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Google sign-in failed: ${auth.error ?? "Unknown error"}'),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('❌ [LoginScreen] EXCEPTION during Google sign-in: $e');
+      debugPrint('❌ [LoginScreen] Stack: $stack');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google sign-in failed: $e'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
   }
 
   Future<void> _login() async {
@@ -41,9 +103,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (success) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,10 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const Text(
-                        '${AppConstants.appName} - Login',
+                      Text(
+                        widget.isCustomerMode ? 'Hire a Driver' : '${AppConstants.appName} - Login',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Colors.indigo,
@@ -105,12 +168,52 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConstants.appTagline,
+                        widget.isCustomerMode ? 'Login to hire a safe driver' : AppConstants.appTagline,
                         textAlign: TextAlign.center,
                         style:
                             TextStyle(color: Colors.grey.shade600, fontSize: 13),
                       ),
                       const SizedBox(height: 28),
+
+                      // Google Sign-In Button
+                      OutlinedButton.icon(
+                        onPressed: _googleLoading ? null : _googleSignIn,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: _googleLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.g_mobiledata,
+                                color: Colors.red, size: 30),
+                        label: Text(
+                          _googleLoading ? 'Signing in...' : 'Continue with Google',
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Divider
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text('OR',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade500)),
+                          ),
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
                       // Email
                       TextFormField(
@@ -189,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Sign up link
+                      // Sign up link — customers go directly to customer signup
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -200,10 +303,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const SignupScreen()),
+                                    builder: (_) => SignupScreen(
+                                      initialRole: widget.isCustomerMode ? 'customer' : null,
+                                    )),
                               );
                             },
-                            child: const Text('Create Account',
+                            child: const Text('Register',
                                 style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],

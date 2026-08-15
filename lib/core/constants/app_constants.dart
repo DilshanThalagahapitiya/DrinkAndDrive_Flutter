@@ -7,6 +7,8 @@
 class AppConstants {
   // Backend API base URL (Next.js backend running on port 3000)
   static const String baseUrl = 'http://localhost:3000';
+    // static const String baseUrl = 'https://endowment-slideshow-panorama.ngrok-free.dev';
+
 
   // App info
   static const String appName = 'DAD';

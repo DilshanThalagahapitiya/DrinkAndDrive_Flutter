@@ -114,6 +114,17 @@ class _RideEditScreenState extends State<RideEditScreen> {
         'odoEndImage': _odoEndImage,
       });
       final updated = res['data']['ride'];
+      // Keep the local ride data in sync so the UI reflects the latest
+      // server state (e.g. totalFare + fareBreakdown appear immediately
+      // after completing the ride).
+      final localRide = widget.ride;
+      if (localRide is Map<String, dynamic>) {
+        updated.forEach((key, value) {
+          if (updated[key] != null) {
+            localRide[key] = updated[key];
+          }
+        });
+      }
       setState(() {
         _status = updated['status'] ?? _status;
         _saving = false;

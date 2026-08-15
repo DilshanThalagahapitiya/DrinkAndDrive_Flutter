@@ -2,15 +2,15 @@
 // DAD (Drink and Drive) - Mobile Application
 // ============================================================
 // Flutter app entry point.
-// Routes to Home when a session is restored (Keep me logged in),
-// otherwise shows the Login screen.
+// Always shows the Landing page on app start.
+// Session is restored silently in the background so the
+// auth state is available when the user logs in.
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'features/auth/providers/auth_provider.dart';
-import 'features/auth/screens/login_screen.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/auth/screens/landing_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,16 +48,15 @@ class DadApp extends StatelessWidget {
   }
 }
 
-// Routes to Home if already logged in (Keep me logged in), else Login
+// Always show the Landing page on app start.
+// The session is restored silently in the background so that
+// when the user logs in (via "Let's Hire" or "other logins"),
+// the auth state is already available.
 class StartupScreen extends StatelessWidget {
   const StartupScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    if (auth.isLoggedIn) {
-      return const HomeScreen();
-    }
-    return const LoginScreen();
+    return const LandingScreen();
   }
 }

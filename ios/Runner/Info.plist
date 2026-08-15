@@ -68,11 +68,28 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Drink and Drive uses your location to select your current position on the map for pickup and drop locations.</string>
+	<!-- Google Maps SDK for iOS API Key (required by google_maps_flutter_ios) -->
+	<key>GoogleMapsAPIKey</key>
+	<string>AIzaSyBiJCCihLlW8cjJ5CCrwsIVJp5I-0kqYrs</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Drink and Drive uses your location to help drivers find the pickup and drop locations.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Drink and Drive uses the camera to capture the odometer reading as proof before starting/completing a ride.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Drink and Drive lets you upload odometer photos from your library.</string>
+
+	<!-- Google Sign-In: REVERSED_CLIENT_ID from GoogleService-Info.plist
+	     Required for the Google Sign-In callback to work on iOS. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.943078584636-uhs1ncblcuc441ktjae7lqj2v9iuua1r</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

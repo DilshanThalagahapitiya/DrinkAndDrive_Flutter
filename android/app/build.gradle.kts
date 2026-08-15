@@ -23,6 +23,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Google Sign-In: Web Client ID (replace if you have a different Web Client ID)
+        manifestPlaceholders["GOOGLE_WEB_CLIENT_ID"] = "943078584636-uhs1ncblcuc441ktjae7lqj2v9iuua1r.apps.googleusercontent.com"
     }
 
     buildTypes {

@@ -196,6 +196,31 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                                   const SizedBox(height: 10),
                                   Text('👤 Customer: ${ride['customerName'] ?? '-'} • ${ride['customerNumber'] ?? ''}', style: const TextStyle(fontSize: 13)),
                                   Text('🚘 ${ride['vehicleType'] ?? '-'} • ⚙️ ${ride['transmission'] ?? '-'}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                  // Show fare amount directly on the list for completed rides
+                                  if (status == 'COMPLETED' && (ride['totalFare'] ?? 0) > 0) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF1F2937), Color(0xFF374151)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('💰 Total Fare',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                                          Text('Rs. ${ride['totalFare']}',
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                   // Show other side's status
                                   if (isRider) ...[
                                     Text('🚗 Driver: ${ride['driver']?['fullName'] ?? 'N/A'}', style: const TextStyle(fontSize: 13, color: Colors.grey)),

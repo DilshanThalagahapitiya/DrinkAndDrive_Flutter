@@ -14,9 +14,13 @@ import '../../../core/network/api_client.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../auth/screens/complete_profile_screen.dart';
 import 'request_driver_screen.dart';
 import 'my_rides_screen.dart';
+import 'customer_rides_screen.dart';
+import 'my_vehicle_screen.dart';
 import '../widgets/rate_table_card.dart';
+import '../widgets/latest_ride_status_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -146,8 +150,14 @@ class HomeScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.directions_car, color: Colors.orange),
                 title: const Text('My Vehicle'),
-                subtitle: const Text('Vehicle details'),
-                onTap: () => Navigator.pop(ctx),
+                subtitle: const Text('Add or edit vehicle details'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MyVehicleScreen()),
+                  );
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
@@ -350,9 +360,16 @@ class _RiderDashboard extends StatelessWidget {
 // ============================================================
 // Customer Dashboard
 // ============================================================
-class _CustomerDashboard extends StatelessWidget {
+class _CustomerDashboard extends StatefulWidget {
   final String name;
   const _CustomerDashboard({required this.name});
+
+  @override
+  State<_CustomerDashboard> createState() => _CustomerDashboardState();
+}
+
+class _CustomerDashboardState extends State<_CustomerDashboard> {
+  int _refreshTrigger = 0;
 
   // We read the contact phone from the rate card (which fetches /api/rates).
   // For dial, use url_launcher via a simple approach — but to avoid adding deps,
@@ -393,8 +410,14 @@ class _CustomerDashboard extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.directions_car, color: Colors.orange),
                 title: const Text('My Vehicle'),
-                subtitle: const Text('Vehicle details'),
-                onTap: () => Navigator.pop(ctx),
+                subtitle: const Text('Add or edit vehicle details'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MyVehicleScreen()),
+                  );
+                },
               ),
               // Logout inside profile
               ListTile(
@@ -428,24 +451,112 @@ class _CustomerDashboard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Welcome, $name 👤',
+          Text('Welcome, ${widget.name} 👤',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           const Text('Customer Portal',
               style: TextStyle(fontSize: 14, color: Colors.grey)),
           const SizedBox(height: 16),
 
-          // Rate Table FIRST — prominent, full width
+          // ⚠️ Profile Incomplete Notification
+          if (!(_isProfileComplete(context))) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Please complete your profile',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Add your vehicle & location details to start hiring drivers.',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.orange.shade800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CompleteProfileScreen()),
+                      );
+                      // Refresh the profile status when returning
+                      if (mounted) {
+                        context.read<AuthProvider>().refreshUser();
+                        setState(() {});
+                      }
+                    },
+                    child: const Text('Complete',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Latest Ride Request Status — shows driver/rider assignment & acknowledgement
+          LatestRideStatusCard(refreshTrigger: _refreshTrigger),
+          const SizedBox(height: 20),
+
+          // My Rides — full ride history with fare amount & breakdown
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CustomerRidesScreen()),
+              );
+              // Refresh the latest status card when returning from ride history
+              if (mounted) {
+                setState(() => _refreshTrigger++);
+              }
+            },
+            icon: const Icon(Icons.history, color: Colors.white),
+            label: const Text('My Rides & Fares', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Rate Table — prominent, full width
           const RateTableCard(),
           const SizedBox(height: 20),
 
           // Request Driver — FULL WIDTH button
           ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const RequestDriverScreen()),
               );
+              // Refresh the latest status card when returning from a new request
+              if (mounted) {
+                setState(() => _refreshTrigger++);
+              }
             },
             icon: const Icon(Icons.airport_shuttle, color: Colors.white),
             label: const Text('Request Driver', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -484,6 +595,12 @@ class _CustomerDashboard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _isProfileComplete(BuildContext context) {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return true;
+    return user.profileComplete;
   }
 }
 

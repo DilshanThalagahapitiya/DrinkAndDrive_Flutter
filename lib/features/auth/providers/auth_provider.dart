@@ -61,6 +61,38 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ---- GOOGLE SIGN-IN ----
+  Future<bool> googleSignIn(String idToken, {String role = 'CUSTOMER'}) async {
+    _setLoading(true);
+    try {
+      final result = await _repo.googleSignIn(idToken, role: role);
+      _user = result.user;
+      await _saveToken(result.token);
+      await _saveUser(result.user);
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ---- REFRESH USER (fetch latest profile from server) ----
+  Future<void> refreshUser() async {
+    try {
+      final res = await ApiClient.instance.get('/api/auth/me');
+      final userJson = res['data']?['user'] as Map<String, dynamic>?;
+      if (userJson != null) {
+        _user = UserModel.fromJson(userJson);
+        await _saveUser(_user!);
+        notifyListeners();
+      }
+    } catch (e) {
+      // Keep current user if refresh fails
+    }
+  }
+
   // ---- RESTORE SESSION (called on app start) ----
   Future<bool> restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -83,6 +115,8 @@ class AuthProvider extends ChangeNotifier {
         status: parts.length > 4 ? parts[4] : 'APPROVED',
         phone: parts.length > 5 ? parts[5] : '',
       );
+      // Try to refresh with full profile data from server
+      refreshUser();
       notifyListeners();
       return true;
     }
@@ -122,7 +156,11 @@ class AuthProvider extends ChangeNotifier {
 
   void _setLoading(bool val) {
     _isLoading = val;
-    _error = null;
+    // Only reset error when starting a new operation, NOT when finishing
+    // (otherwise the catch block's error gets wiped by finally's _setLoading(false))
+    if (val) {
+      _error = null;
+    }
     notifyListeners();
   }
 }

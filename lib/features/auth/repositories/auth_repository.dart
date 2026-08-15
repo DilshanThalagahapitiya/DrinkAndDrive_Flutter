@@ -1,7 +1,7 @@
 // ============================================================
 // Auth Repository
 // ============================================================
-// Handles authentication API calls: login and signup.
+// Handles authentication API calls: login, signup, and Google sign-in.
 // ============================================================
 
 import '../../../core/network/api_client.dart';
@@ -26,6 +26,20 @@ class AuthRepository {
   // ---- SIGNUP ----
   Future<AuthResult> signup(Map<String, dynamic> userData) async {
     final response = await _api.post('/api/auth/signup', userData, auth: false);
+    final data = response['data'] as Map<String, dynamic>;
+    final result = AuthResult.fromJson(data);
+    if (result.token.isNotEmpty) {
+      _api.setToken(result.token);
+    }
+    return result;
+  }
+
+  // ---- GOOGLE SIGN-IN ----
+  Future<AuthResult> googleSignIn(String idToken, {String role = 'CUSTOMER'}) async {
+    final response = await _api.post('/api/auth/google', {
+      'idToken': idToken,
+      'role': role,
+    }, auth: false);
     final data = response['data'] as Map<String, dynamic>;
     final result = AuthResult.fromJson(data);
     if (result.token.isNotEmpty) {
